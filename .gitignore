@@ -1,0 +1,9 @@
+# 디버깅 스크린샷
+cardflip-*.png
+
+# 압축 패키지 (소스에서 재생성)
+cardflip-pwa.zip
+
+# 시스템
+.DS_Store
+Thumbs.db
