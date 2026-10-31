@@ -150,6 +150,32 @@ body {
   gap: clamp(8px, 1.2vw, 14px);
 }
 
+.actions { flex-wrap: wrap; }
+.preview-setting {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: white;
+  border: 3px solid var(--navy);
+  border-radius: 16px;
+  font-size: clamp(13px, 1.6vh, 18px);
+  font-weight: 700;
+}
+.preview-setting select {
+  font: inherit;
+  color: var(--navy);
+  background: var(--cream);
+  border: 2px solid var(--navy);
+  border-radius: 8px;
+  padding: 6px;
+  cursor: pointer;
+}
+.preview-setting select:focus-visible {
+  outline: 3px solid var(--orange);
+  outline-offset: 3px;
+}
+
 /* 난이도 버튼 그룹 */
 .difficulty {
   display: flex;
@@ -858,6 +884,21 @@ body {
       </div>
 
       <div class="actions">
+        <label class="preview-setting" for="previewSeconds" title="다음 게임부터 적용됩니다">
+          <span>👀 미리보기</span>
+          <select id="previewSeconds" aria-label="시작 미리보기 시간 (다음 게임부터 적용)">
+            <option value="1">1초</option>
+            <option value="2">2초</option>
+            <option value="3" selected>3초</option>
+            <option value="4">4초</option>
+            <option value="5">5초</option>
+            <option value="6">6초</option>
+            <option value="7">7초</option>
+            <option value="8">8초</option>
+            <option value="9">9초</option>
+            <option value="10">10초</option>
+          </select>
+        </label>
         <div class="option-group">
           <button class="icon-toggle" id="hoverToggle" aria-pressed="false" title="호버 뒤집기">
             <span class="icon-toggle-icon">🖱️</span>
@@ -881,7 +922,7 @@ body {
       <div class="preview-banner" id="previewBanner" aria-live="polite">
         <span class="preview-banner-icon">👀</span>
         <span class="preview-banner-text">외워보세요!</span>
-        <span class="preview-banner-count" id="previewCount">2</span>
+        <span class="preview-banner-count" id="previewCount">3</span>
       </div>
     </main>
   </div>
@@ -931,7 +972,18 @@ const LEVELS = {
 const STORAGE_KEY = 'cardflip_best_scores_v1';
 const HOVER_FLIP_KEY = 'cardflip_hover_flip_v1';
 const SOUND_KEY = 'cardflip_sound_v1';
-const PREVIEW_SECONDS = 2;
+const PREVIEW_SECONDS_KEY = 'cardflip_preview_seconds_v1';
+const DEFAULT_PREVIEW_SECONDS = 3;
+
+function loadPreviewSeconds() {
+  try {
+    const saved = Number(localStorage.getItem(PREVIEW_SECONDS_KEY));
+    return Number.isInteger(saved) && saved >= 1 && saved <= 10
+      ? saved : DEFAULT_PREVIEW_SECONDS;
+  } catch (e) {
+    return DEFAULT_PREVIEW_SECONDS;
+  }
+}
 
 // ---------- 상태 ----------
 const state = {
@@ -948,6 +1000,7 @@ const state = {
   gameOver: false,
   hoverFlip: false,
   soundOn: true,
+  previewSeconds: loadPreviewSeconds(),
   previewTimer: null,
   previewInterval: null
 };
@@ -974,6 +1027,7 @@ const elements = {
   pairs:       $('#pairs'),
   previewBanner: $('#previewBanner'),
   previewCount:  $('#previewCount'),
+  previewSeconds: $('#previewSeconds'),
   app:         document.querySelector('.app')
 };
 
@@ -1232,7 +1286,7 @@ function startGame(level) {
   // 모달 닫기
   closeWinModal();
 
-  // 시작 미리보기: 모든 카드 1초간 공개
+  // 시작 미리보기: 선택한 시간 동안 모든 카드 공개
   previewAllCards();
 }
 
@@ -1242,7 +1296,8 @@ function previewAllCards() {
   cardEls.forEach(el => el.classList.add('flipped'));
 
   // 카운트다운 배너 표시
-  let remaining = PREVIEW_SECONDS;
+  const previewSeconds = state.previewSeconds;
+  let remaining = previewSeconds;
   elements.previewCount.textContent = remaining;
   elements.previewBanner.classList.add('show');
 
@@ -1268,7 +1323,7 @@ function previewAllCards() {
     clearInterval(state.previewInterval);
     state.previewInterval = null;
     state.previewTimer = null;
-  }, PREVIEW_SECONDS * 1000);
+  }, previewSeconds * 1000);
 }
 
 function hidePreviewBanner() {
@@ -1504,6 +1559,16 @@ elements.soundToggle.addEventListener('click', () => {
   if (state.soundOn) sounds.click();
 });
 
+elements.previewSeconds.value = String(state.previewSeconds);
+elements.previewSeconds.addEventListener('change', () => {
+  const seconds = Number(elements.previewSeconds.value);
+  if (!Number.isInteger(seconds) || seconds < 1 || seconds > 10) return;
+  state.previewSeconds = seconds;
+  try {
+    localStorage.setItem(PREVIEW_SECONDS_KEY, String(seconds));
+  } catch (e) {}
+});
+
 // 저장된 설정 불러오기
 try {
   setHoverFlip(localStorage.getItem(HOVER_FLIP_KEY) === '1');
@@ -1529,6 +1594,7 @@ elements.winModal.querySelector('.modal-backdrop').addEventListener('click', () 
 
 // 키보드 단축키
 window.addEventListener('keydown', (e) => {
+  if (e.target instanceof Element && e.target.closest('select, input, textarea, [contenteditable]')) return;
   if (e.key === 'r' || e.key === 'R') {
     startGame(state.level);
   } else if (e.key === '0') {
